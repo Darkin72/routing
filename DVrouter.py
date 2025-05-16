@@ -61,9 +61,9 @@ class DVrouter(Router):
                                 self.forwarding_table[endpoint] = self.forwarding_table[packet.src_addr]
                                 self.distance_vector[endpoint] = cost_tmp + cost
             #   broadcast the distance vector of this router to neighbors
-                    for endpoint, to_port in self.forwarding_table.items():
+                    for endpoint in self.neighbors.keys():
                         content = json.dumps(self.distance_vector)
-                        self.send(to_port, Packet(Packet.ROUTING, self.addr, endpoint , content=content))
+                        self.send(self.forwarding_table[endpoint], Packet(Packet.ROUTING, self.addr, endpoint , content=content))
 
     def handle_new_link(self, port, endpoint, cost):
         """Handle new link."""
@@ -82,21 +82,29 @@ class DVrouter(Router):
     def handle_remove_link(self, port):
         """Handle removed link."""
         # TODO
+        for endpoint, _port in self.forwarding_table.items():
+            if _port == port:
+                endpoint_to_del = endpoint
         #   update the distance vector of this router
+                del self.distance_vector[endpoint_to_del]
         #   update the forwarding table
+                del self.forwarding_table[endpoint_to_del]
+                del self.neighbors[endpoint_to_del]
         #   broadcast the distance vector of this router to neighbors
-        pass
+                for endpoint, to_port in self.forwarding_table.items():
+                        content = json.dumps(self.distance_vector)
+                        self.send(to_port, Packet(Packet.ROUTING, self.addr, endpoint , content=content))
+                break
 
     def handle_time(self, time_ms):
         """Handle current time."""
-        if time_ms - self.last_time >= self.heartbeat_time:
+        if time_ms - self.last_time >= self.heartbeat_time /2:
             self.last_time = time_ms
             # TODO
             #   broadcast the distance vector of this router to neighbors
-            for endpoint, port in self.forwarding_table.items():
+            for endpoint in self.neighbors.keys():
                 content = json.dumps(self.distance_vector)
-                self.send(port, Packet(Packet.ROUTING, self.addr, endpoint , content=content))
-            pass
+                self.send(self.forwarding_table[endpoint], Packet(Packet.ROUTING, self.addr, endpoint , content=content))
 
     def __repr__(self):
         """Representation for debugging in the network visualizer."""
