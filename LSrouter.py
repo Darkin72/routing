@@ -22,12 +22,11 @@ class LSrouter(Router):
         Router.__init__(self, addr)  # Initialize base class - DO NOT REMOVE
         self.heartbeat_time = heartbeat_time
         self.last_time = 0
+
         self.sequence_number = 0 
         self.link_state = {}
         self.lsdb = {}
-        self.lsdb[self.addr] = {'sequence_number': self.sequence_number, 'link_state': self.link_state.copy()}
-        self.forwarding_table = {} 
-        self.forwarding_table[self.addr] = None 
+        self.forwarding_table = {}
 
     def handle_packet(self, port, packet):
         """Process incoming packet."""
@@ -46,7 +45,10 @@ class LSrouter(Router):
             previous_link_state = self.lsdb.get(src_addr)
             if previous_link_state is None or sequence_number > self.lsdb[src_addr]['sequence_number']:
                 #   update the local copy of the link state
-                self.lsdb[src_addr] = {'sequence_number': sequence_number, 'link_state': link_state}
+                self.lsdb[src_addr] = {
+                    'sequence_number': sequence_number, 
+                    'link_state': link_state
+                }
                 #   update the forwarding table
                 self.compute_forwarding_table()
                 #   broadcast the packet to other neighbors
@@ -95,6 +97,8 @@ class LSrouter(Router):
             self.broadcast_lsa()
 
     def broadcast_lsa(self):
+        links = {nbr: cost for (_, (nbr, cost)) in self.link_state.items()}
+        self.lsdb[self.addr] = (self.sequence_number, links.copy())
         lsa_content = json.dumps((self.sequence_number, self.link_state.copy()))
         for port, (neighbor, _) in self.link_state.items():
             pkt = Packet(Packet.ROUTING, self.addr, neighbor, content=lsa_content)
