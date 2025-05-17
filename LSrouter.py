@@ -56,7 +56,7 @@ class LSrouter(Router):
     def broadcast_lsa(self):
         links = {nbr: cost for (_, (nbr, cost)) in self.link_state.items()}
         self.lsdb[self.addr] = (self.sequence_number, links.copy())
-        lsa_content = json.dumps((self.sequence_number, self.link_state.copy()))
+        lsa_content = json.dumps((self.sequence_number, links))
         for port, (neighbor, _) in self.link_state.items():
             pkt = Packet(Packet.ROUTING, self.addr, neighbor, content=lsa_content)
             self.send(port, pkt)
