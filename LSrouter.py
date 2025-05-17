@@ -35,7 +35,7 @@ class LSrouter(Router):
         if packet.is_traceroute:
             end_port = packet.dst_addr
             if end_port in self.forwarding_table:
-                out_port = self.forwarding_table[end_port]
+                out_port = self.forwarding_table[end_port][0]
                 self.send(out_port, packet)
                 return
         else:
@@ -101,40 +101,37 @@ class LSrouter(Router):
             self.send(port, pkt)
 
     def compute_forwarding_table(self):
-        #B1: xây đồ thị
-        graph = {r: {} for r in self.lsdb}
-        for r, data in self.lsdb.items():
-            for _, (nbr, cost) in data['link_state'].items():
-                graph[r][nbr] = cost
-        #B2: chạy Dijkstra
-        dist = {node: int('16') for node in graph}
+        graph = {router: links.copy() for router, (_, links) in self.lsdb.items()}
+        dist = {self.addr: 0}
         prev = {}
-        dist[self.addr] = 0
         heap = [(0, self.addr)]
+        visited = set()
         while heap:
             d, u = heapq.heappop(heap)
-            if d > dist[u]:
+            if u in visited:
                 continue
-            for v, w in graph[u].items():
-                alt = d + w
-                if alt < dist[v]:
-                    dist[v] = alt
+            visited.add(u)
+            for v, w in graph.get(u, {}).items():
+                new_cost = d + w
+                if v not in dist or new_cost < dist[v]:
+                    dist[v] = new_cost
                     prev[v] = u
-                    heapq.heappush(heap, (alt, v))
-        #B3: cập nhật bảng định tuyến
+                    heapq.heappush(heap, (new_cost, v))
+       
         self.forwarding_table.clear()
-        self.forwarding_table = {self.addr: None}
-        for dest in graph:
-            if dest == self.addr or dest not in prev:
+        for dest, total_cost in dist.items():
+            if dest == self.addr:
                 continue
-            # tìm next hop đầu tiên
-            hop = dest
-            while prev[hop] != self.addr:
-                hop = prev[hop]
-            # tìm port tương ứng với hop
-            for port, (nbr, _) in self.link_state.items():
-                if nbr == hop:
-                    self.forwarding_table[dest] = port
+            next_hop = dest
+            while prev.get(next_hop) != self.addr:
+                next_hop = prev.get(next_hop)
+                if next_hop is None:
+                    break
+            if next_hop is None:
+                continue
+            for port, (nbr, _) in self.neighbors.items():
+                if nbr == next_hop:
+                    self.forwarding_table[dest] = (port, total_cost)
                     break
 
     def __repr__(self):
