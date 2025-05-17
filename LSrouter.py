@@ -129,7 +129,7 @@ class LSrouter(Router):
                     break
             if next_hop is None:
                 continue
-            for port, (nbr, _) in self.neighbors.items():
+            for port, (nbr, _) in self.link_state.items():
                 if nbr == next_hop:
                     self.forwarding_table[dest] = (port, total_cost)
                     break
@@ -138,4 +138,4 @@ class LSrouter(Router):
         """Representation for debugging in the network visualizer."""
         # TODO
         #   NOTE This method is for your own convenience and will not be graded
-        return f"LSrouter(addr={self.addr})"
+        return f"LSrouter(addr={self.addr}, ft={self.forwarding_table})"
